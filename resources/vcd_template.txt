@@ -1,0 +1,33 @@
+First $date and #end with the date
+
+Second $version w/ creator / version / liscence
+
+Third $timescale to determine consistency for time values
+	ex (1 nanosecond): 1ns
+
+Fourth modules and variables:
+	4.1: $scope module will create a grouping of variables
+
+	4.2: $var [wire/reg] [symbol] [size] [name] [value range (for wires)]
+		4.2.1: wires need a range of bits ex (8-bit busses): [0:7]
+		4.2.2: size is determined by the number of bits available. Default is 1 for 0/1 dynamic. ex (32 bits): 32
+		4.2.3: name is the name for the operation. ex: value / clk / rstn / out
+
+	4.3: when finished with a module or sub-modules use &upscope to advance up the directory
+		4.3.1: Go to root of modules for ending the headers
+
+	4.4: $enddefinition to end the header section
+		4.4.1: #0 to begin the simulation timeline and initial timestamp
+		4.4.2: $dumpvars to specifu the inital values of all the variables being dumped at the start of the simulation
+
+Fifth Simulation Timeline
+	5.0: assigning a value as bits
+		5.0.1: ex: b0 ! //This sets the ! wire as 0 bits
+		5.0.2: ex: b101 ! //This sets the ! wire as 101 bits
+
+	5.1: Assigning timestamps
+		5.1.1: Timestamps are in always done in order
+		5.1.2: ex: #1 then #10 then #25 for 1, 10, 25 in the determined time values
+
+	5.2: Assigning a value as hex
+		5.2.1: ex: hee ! //This sets the ! wire as ee
