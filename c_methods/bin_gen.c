@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <pthread.h>
 #include <sched.h>
 #include <time.h>
 #include <inttypes.h>
+#include <unistd.h>
+#include <getopt.h>
 
-#define DEBUG 1
-#define THREAD_COUNT 5
-#define NUM_NODES 10
 #define MIN_NANO 500000
 #define MAX_NANO 5000000
 
@@ -16,15 +16,19 @@ typedef struct {
     uint32_t id;
     uint64_t time_stamp;
 } Node;
+char *bin_path;
 FILE *bin_file;
 
 pthread_mutex_t v_lock;
 pthread_cond_t cond;
+int thread_count;
+int num_nodes;
 int id = 1;
 int current_thread = 0;
+uint64_t base_ts;
 
-int dump_bin(){
-    FILE *file = fopen("c_methods/output.bin", "rb");
+int dump_bin(char *output_bin){
+    FILE *file = fopen(output_bin, "rb");
     if (file == NULL) {
         perror("Error opening file");
         return 1;
@@ -50,6 +54,16 @@ int dump_bin(){
     return 0;
 }
 
+uint64_t gen_time_stamp() {
+    uint64_t rv;
+
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    rv = (uint64_t)ts.tv_sec * 1000000000L + (uint64_t)ts.tv_nsec;
+
+    return rv;
+}
+
 void *create_values(void* arg){
     uint32_t temp;
     long tid = (long)arg;
@@ -61,9 +75,9 @@ void *create_values(void* arg){
             pthread_cond_wait(&cond, &v_lock);
         }
 
-        if (id > NUM_NODES) {
+        if (id > num_nodes) {
             pthread_mutex_unlock(&v_lock);
-            current_thread = (current_thread + 1) % THREAD_COUNT;
+            current_thread = (current_thread + 1) % thread_count;
             pthread_cond_broadcast(&cond);
             break;
         }
@@ -80,9 +94,7 @@ void *create_values(void* arg){
         req.tv_nsec = MIN_NANO + rand() % (MAX_NANO - MIN_NANO + 1);
         nanosleep(&req, &rem);
 
-        struct timespec ts;
-        clock_gettime(CLOCK_REALTIME, &ts);
-        uint64_t time_stamp = (uint64_t)ts.tv_sec * 1000000000L + (uint64_t)ts.tv_nsec;
+        uint64_t time_stamp = gen_time_stamp() - base_ts;
 
         size_t bytes_written = fwrite(&temp, sizeof(uint32_t), 1, bin_file);
         if (bytes_written != 1) {
@@ -96,10 +108,10 @@ void *create_values(void* arg){
             fclose(bin_file);
         }
 
-        if(DEBUG) printf("T%ld: i-%d, time-%lu, id-%u\n\n", tid, id, time_stamp, temp);
+        // if(debug) printf("T%ld: i-%d, time-%lu, id-%u\n\n", tid, id, time_stamp, temp);
         id++;
 
-        current_thread = (current_thread + 1) % THREAD_COUNT;
+        current_thread = (current_thread + 1) % thread_count;
         pthread_cond_broadcast(&cond);
 
         pthread_mutex_unlock(&v_lock);
@@ -107,11 +119,45 @@ void *create_values(void* arg){
     }
 }
 
-int main(){
-    int rv;
-    pthread_t threads[THREAD_COUNT];
+int main(int argc, char *argv[]){
+    int opt;
+    int option_index = 0;
+    int debug = 0;
 
-    bin_file = fopen("c_methods/output.bin", "wb");
+    // Define long options
+    static struct option long_options[] = {
+        {"debug", no_argument, 0, 0},
+        {0, 0, 0, 0}
+    };
+
+    while ((opt = getopt_long(argc, argv, "o:n:t:", long_options, &option_index)) != -1) {
+        switch (opt) {
+            case 'o':
+                printf("%s\n", optarg);
+                bin_path = optarg;
+                break;
+            case 'n':
+                num_nodes = atoi(optarg);
+                break;
+            case 't':
+                thread_count = atoi(optarg);
+                break;
+            case 0:
+                if(strcmp(long_options[option_index].name, "debug") == 0){
+                    debug = 1;
+                }
+                break;
+            default:
+                exit(EXIT_FAILURE);
+        }
+    }
+
+    int rv;
+    struct timespec start, end;
+    double cpu_time_used;
+    pthread_t threads[thread_count];
+
+    bin_file = fopen(bin_path, "wb");
     if (bin_file == NULL) {
         perror("Error opening bin file");
         return 1;
@@ -120,7 +166,9 @@ int main(){
     pthread_mutex_init(&v_lock, NULL);
     pthread_cond_init(&cond, NULL);
 
-    for(long i=0; i<THREAD_COUNT; i++) {
+    base_ts = gen_time_stamp();
+
+    for(long i=0; i<thread_count; i++) {
         int rc = pthread_create(&threads[i], NULL, create_values, (void *)i);
 
         if (rc){
@@ -129,15 +177,16 @@ int main(){
         }
     }
 
-    for(int i=0; i<THREAD_COUNT; i++) {
+    for(int i=0; i<thread_count; i++) {
         pthread_join(threads[i], NULL);
     }
+
     fclose(bin_file);
 
     pthread_mutex_destroy(&v_lock);
     pthread_cond_destroy(&cond);
 
-    if(DEBUG) rv = dump_bin();
+    if(debug) rv = dump_bin(bin_path);
 
     printf("Binary file created successfully!\n");
     return rv;

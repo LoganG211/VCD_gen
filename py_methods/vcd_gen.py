@@ -2,13 +2,11 @@ import struct
 from datetime import datetime
 import threading
 import os
-import sys
-
-DEBUG = 1
-THREAD_COUNT = 2
+import argparse
 
 h_entries = []
 entries = []
+global current_time
 current_time = 0
 global position
 entry_size = 12
@@ -19,6 +17,7 @@ size_of_data = struct.calcsize(format_string)
 
 threads = []
 mutex = threading.Lock()
+
 
 class h_entry:
     def __init__(self, hex, name):
@@ -34,6 +33,7 @@ class h_entry:
     def get_hex(self):
         return hex(self.hex)
 
+
 class Entry:
     def __init__(self, id, time_stamp):
         self.id = id
@@ -48,10 +48,12 @@ class Entry:
     def get_time_stamp(self):
         return self.time_stamp
 
+
 def dump_entries():
     print()
     for element in entries:
         print(element)
+
 
 def read_names():
     with open(names_input, 'r') as n:
@@ -60,11 +62,12 @@ def read_names():
             hex = int(hex.strip(), 16)
             name = name.strip()
             h_entries.append(h_entry(hex, name))
-    if DEBUG:
+    if args.debug:
         print()
         for element in h_entries:
             print(element)
         print()
+
 
 def vcd_header():
     file = open(vcd_output, 'w')
@@ -77,7 +80,7 @@ def vcd_header():
     read_names()
     for element in h_entries:
         file.write(f'$var wire 1 {element.get_hex()} {element.get_name()} $end\n')
-        if DEBUG: print(element), print()
+        if args.debug: print(element), print()
     
     file.write('$enddefinitions $end\n')
     file.write('#0\n$dumpvars\n')
@@ -89,69 +92,70 @@ def vcd_header():
     position = file.tell()
     file.close()
 
+
 def vcd_timestamps():
     global position
-    global current_time
-
-    file = open(vcd_output, 'a')
-    file.seek(position)
-    e_bit = 0
 
     # Read the binary data from the file
     with open(bin_input, 'rb') as in_file:
         tid = 0
         while(threads[tid].ident != threading.get_ident()):
             tid = tid + 1
-        offset = (int)(tid * ((os.path.getsize(bin_input) / entry_size) / THREAD_COUNT) * entry_size)
+        offset = (int)(tid * ((os.path.getsize(bin_input) / entry_size) / thread_count) * entry_size)
         in_file.seek(offset)
         while chunk := in_file.read(size_of_data):
-            if((tid+1) < THREAD_COUNT and (in_file.tell()-size_of_data) == (tid+1) * ((os.path.getsize(bin_input)/entry_size)/THREAD_COUNT)*entry_size):
+            if((tid+1) < thread_count and (in_file.tell()-size_of_data) == (tid+1) * ((os.path.getsize(bin_input)/entry_size)/thread_count)*entry_size):
                 break
             mutex.acquire()
             try:
                 value32, value64 = struct.unpack(format_string, chunk)
 
-                if DEBUG: print(f"T: {tid}, 32-bit value: {value32:#010x}, 64-bit value: {value64}")
+                if args.debug: print(f"T: {tid}, 32-bit value: {value32:#010x}, 64-bit value: {value64}")
                 entries.append(Entry(value32, value64))
-
-                # if(value64 > current_time):
-                #     current_time = value64
-                #     file.write(f'#{current_time}\n')
-                
-                # e_bit = value32 & 0xFF
-                # if((value32 & 0xFF) == 0xFF):
-                #     e_bit = 1
-                # elif((value32 & 0xFF) == 0):
-                #     e_bit = 0
-                # else:
-                #     e_bit = 2
-                
-                # file.write(f'b{e_bit} {hex(value32>>24)}\n')
-                # position = file.tell()
             finally:
                 mutex.release()
+
+
+def write_vcd():
+    file = open(vcd_output, 'a')
+    file.seek(position)
+
+    for entry in entries:
+        e_byte = 1 if(entry.id & 0xFF) == 255 else (entry.id & 0xFF)
+        if(current_time < entry.time_stamp): file.write(f'#{entry.time_stamp:020}\n')
+        file.write(f'b{e_byte} {hex(entry.id>>24)}\n')
+
     file.close()
 
+
 def main():
-    if len(sys.argv) < 4:
-        print("Try: python3 vcd_gen.py <input.bin> <output.vcd> <names.txt>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--debug', action='store_true', help='enable debug mode')
+    parser.add_argument('--bin_file', required=True, type=str, help='input binary file')
+    parser.add_argument('--vcd_file', required=True,type=str, help='output vcd file')
+    parser.add_argument('--name_file', required=True, type=str, help='input text file')
+    parser.add_argument('--threads', required=True, type=int, help='number of threads')
+
+    global args
+    args = parser.parse_args()
     
     os.system("make run_c")
     
-    global bin_input
-    bin_input = sys.argv[1]
+    global thread_count
+    thread_count = args.threads
+
     global vcd_output
-    vcd_output = sys.argv[2]
+    vcd_output = args.vcd_file
+
+    global bin_input
+    bin_input = args.bin_file
+
     global names_input
-    names_input = sys.argv[3]
+    names_input = args.name_file
 
-    # print(f"Argument 1: {bin_input}")
-    # print(f"Argument 2: {vcd_output}")
+    vcd_header() # Works
 
-    vcd_header()
-
-    for _ in range(THREAD_COUNT):
+    for _ in range(thread_count):
         threads.append(threading.Thread(target=vcd_timestamps))
 
     for thread in threads:
@@ -162,9 +166,12 @@ def main():
     
     entries.sort(key=lambda Entry: Entry.time_stamp)
 
-    if(DEBUG): dump_entries()
+    write_vcd() # Works
+
+    if(args.debug): dump_entries()
 
     print("\nVCD file created successfully!")
+
 
 if __name__ == "__main__":
     main()
