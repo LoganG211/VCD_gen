@@ -139,8 +139,6 @@ def main():
     global args
     args = parser.parse_args()
     
-    os.system("make run_c")
-    
     global thread_count
     thread_count = args.threads
 

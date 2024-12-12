@@ -11,26 +11,24 @@ SRCS = $(C_DIR)/bin_gen.c
 
 OBJS := $(SRCS:%.c=$(BUILD_DIR)/%.o)
 
-all: $(OBJS)
-	$(CC) -o $(BUILD_DIR)/bin_gen
-	$(CC) -o $(BUILD_DIR)/vcd_gen
-
-run: c
-	$(PYTHON) $(PY_DIR)/vcd_gen.py --bin_file $(C_DIR)/output.bin --vcd_file $(PY_DIR)/output.vcd --name_file $(R_DIR)/names.txt --threads 5 --debug
-
-run_c:
+all:
 	make c
-	./$(BUILD_DIR)/bin_gen $(C_DIR)/output.bin 10 5
-#	./$(BUILD_DIR)/vcd_gen
+
+run:
+	$(PYTHON) $(PY_DIR)/vcd_gen.py --bin_file $(C_DIR)/output.bin --vcd_file $(PY_DIR)/output.vcd --name_file $(R_DIR)/names.txt --threads 10
+
+py:
+	$(PYTHON) $(PY_DIR)/vcd_gen.py --bin_file $(C_DIR)/output.bin --vcd_file $(PY_DIR)/output.vcd --name_file $(R_DIR)/names.txt --threads 10
 
 c: $(BUILD_DIR)
 	$(CC) $(LDFLAGS) $(C_DIR)/bin_gen.c -o $(BUILD_DIR)/bin_gen
-	./$(BUILD_DIR)/bin_gen -o $(C_DIR)/output.bin -n 10 -t 5 --debug
+	./$(BUILD_DIR)/bin_gen -o $(C_DIR)/output.bin -n 90000000 -t 10
+#	./$(BUILD_DIR)/vcd_gen
+#	./$(BUILD_DIR)/bin_gen -o $(C_DIR)/output.bin -n 100000 -t 5 --debug
 #	$(CC) $(LDFLAGS) $(C_DIR)/vcd_gen.c -o $(BUILD_DIR)/vcd_gen
 
-run_python:
-#	$(PYTHON) $(PY_DIR)/bin_gen.py
-	$(PYTHON) $(PY_DIR)/vcd_gen.py --binary_file $(C_DIR)/output.bin --vcd_file $(PY_DIR)/output.vcd --name_file $(R_DIR)/names.txt --threads 5 --debug
+p:
+	$(PYTHON) $(PY_DIR)/vcd_gen.py --bin_file $(C_DIR)/output.bin --vcd_file $(PY_DIR)/output.vcd --name_file $(R_DIR)/names.txt --threads 10
 
 # Compile source files into object files in the build directory
 $(BUILD_DIR):

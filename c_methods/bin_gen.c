@@ -11,6 +11,8 @@
 
 #define MIN_NANO 500000
 #define MAX_NANO 5000000
+// Determines if the binary generator is used for unit testing or genuine test files
+#define TEST 1
 
 typedef struct {
     uint32_t id;
@@ -21,11 +23,18 @@ FILE *bin_file;
 
 pthread_mutex_t v_lock;
 pthread_cond_t cond;
+// Determines the number of threads
 int thread_count;
+// Determines the max number of entries generated
 int num_nodes;
+// Determines the node # of the node being written
 int id = 1;
+// Determines which thread is chosen to be active
 int current_thread = 0;
+// The computer's 0 time
 uint64_t base_ts;
+// The holer for the previous node's time_stamp for unit testing
+uint64_t recent_ts;
 
 int dump_bin(char *output_bin){
     FILE *file = fopen(output_bin, "rb");
@@ -87,14 +96,23 @@ void *create_values(void* arg){
         if(id%4 == 2) temp = 0x9a2222FF;
         if(id%4 == 3) temp = 0xfe2222FF;
 
-        //wait 1 mili = 1,000,000 nano and 0.5mili -> 5 mili so 500,000nano -> 5,000,000nano range: 4,500,000
-        struct timespec req, rem;
-        req.tv_sec = 0;
-        srand(time(0)); //ensures different results each run with current time = seed
-        req.tv_nsec = MIN_NANO + rand() % (MAX_NANO - MIN_NANO + 1);
-        nanosleep(&req, &rem);
+        uint64_t time_stamp;
 
-        uint64_t time_stamp = gen_time_stamp() - base_ts;
+        if(TEST) {
+            srand(time(0)); //ensures different results each run with current time = seed
+            recent_ts = recent_ts + (MIN_NANO + rand() % (MAX_NANO - MIN_NANO + 1));
+
+            time_stamp = recent_ts - base_ts;
+        } else {
+            //wait 1 mili = 1,000,000 nano and 0.5mili -> 5 mili so 500,000nano -> 5,000,000nano range: 4,500,000
+            struct timespec req, rem;
+            req.tv_sec = 0;
+            srand(time(0)); //ensures different results each run with current time = seed
+            req.tv_nsec = MIN_NANO + rand() % (MAX_NANO - MIN_NANO + 1);
+            nanosleep(&req, &rem);
+
+            time_stamp = gen_time_stamp() - base_ts;
+        }
 
         size_t bytes_written = fwrite(&temp, sizeof(uint32_t), 1, bin_file);
         if (bytes_written != 1) {
@@ -109,6 +127,9 @@ void *create_values(void* arg){
         }
 
         // if(debug) printf("T%ld: i-%d, time-%lu, id-%u\n\n", tid, id, time_stamp, temp);
+        if(id % 1000000 == 0) {
+            printf("%d\n", id);;
+        }
         id++;
 
         current_thread = (current_thread + 1) % thread_count;
@@ -167,6 +188,7 @@ int main(int argc, char *argv[]){
     pthread_cond_init(&cond, NULL);
 
     base_ts = gen_time_stamp();
+    recent_ts = base_ts;
 
     for(long i=0; i<thread_count; i++) {
         int rc = pthread_create(&threads[i], NULL, create_values, (void *)i);
