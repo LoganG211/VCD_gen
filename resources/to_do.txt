@@ -1,4 +1,0 @@
-1. Makefile
-2. Finish multithreading vcd_gen.py
-    2.1. Need mutex placement
-2. Convert .py to .c functionally.

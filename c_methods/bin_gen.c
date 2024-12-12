@@ -33,10 +33,10 @@ int id = 1;
 int current_thread = 0;
 // The computer's 0 time
 uint64_t base_ts;
-// The holer for the previous node's time_stamp for unit testing
+// The holder for the previous node's time_stamp for unit testing
 uint64_t recent_ts;
 
-int dump_bin(char *output_bin){
+int dump_bin(char *output_bin) {
     FILE *file = fopen(output_bin, "rb");
     if (file == NULL) {
         perror("Error opening file");
@@ -73,14 +73,14 @@ uint64_t gen_time_stamp() {
     return rv;
 }
 
-void *create_values(void* arg){
+void *create_values(void* arg) {
     uint32_t temp;
     long tid = (long)arg;
 
-    while(1){
+    while(1) {
         pthread_mutex_lock(&v_lock);
 
-        while (current_thread != tid) { 
+        while (current_thread != tid) {
             pthread_cond_wait(&cond, &v_lock);
         }
 
@@ -140,36 +140,36 @@ void *create_values(void* arg){
     }
 }
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
     int opt;
     int option_index = 0;
     int debug = 0;
 
     // Define long options
     static struct option long_options[] = {
-        {"debug", no_argument, 0, 0},
-        {0, 0, 0, 0}
+        {"debug", no_argument, 0, 0 },
+        {0, 0, 0, 0 }
     };
 
     while ((opt = getopt_long(argc, argv, "o:n:t:", long_options, &option_index)) != -1) {
         switch (opt) {
-            case 'o':
-                printf("%s\n", optarg);
-                bin_path = optarg;
-                break;
-            case 'n':
-                num_nodes = atoi(optarg);
-                break;
-            case 't':
-                thread_count = atoi(optarg);
-                break;
-            case 0:
-                if(strcmp(long_options[option_index].name, "debug") == 0){
-                    debug = 1;
-                }
-                break;
-            default:
-                exit(EXIT_FAILURE);
+        case 'o':
+            printf("%s\n", optarg);
+            bin_path = optarg;
+            break;
+        case 'n':
+            num_nodes = atoi(optarg);
+            break;
+        case 't':
+            thread_count = atoi(optarg);
+            break;
+        case 0:
+            if(strcmp(long_options[option_index].name, "debug") == 0) {
+                debug = 1;
+            }
+            break;
+        default:
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -193,7 +193,7 @@ int main(int argc, char *argv[]){
     for(long i=0; i<thread_count; i++) {
         int rc = pthread_create(&threads[i], NULL, create_values, (void *)i);
 
-        if (rc){
+        if (rc) {
             printf("ERROR; return code from pthread_create() is %d\n", rc);
             return 1;
         }

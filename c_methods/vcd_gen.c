@@ -42,8 +42,8 @@ int e_index = 0;
 
 int current_time = 0;
 
-void dump_header_entries(){
-    for(int i=0; i<NUM_ENTRIES; i++){
+void dump_header_entries() {
+    for(int i=0; i<NUM_ENTRIES; i++) {
         printf("\nNode(%s, %s)\n", header_entries[i].hex, header_entries[i].name);
         printf("    hex: %s\n", header_entries[i].hex);
         printf("    name: %s\n", header_entries[i].name);
@@ -74,7 +74,7 @@ void remove_extra_spaces(char *str) {
     }
 }
 
-void read_names(){
+void read_names() {
     name_file = fopen("c_methods/names.txt", "r");
     if (name_file == NULL) {
         perror("Error opening names.txt file");
@@ -105,7 +105,7 @@ void read_names(){
     }
 }
 
-int create_header(){
+int create_header() {
     vcd_file = fopen("c_methods/output.vcd", "wb");
     if (vcd_file == NULL) {
         perror("Error opening output.vcd vcd_file");
@@ -126,7 +126,7 @@ int create_header(){
 
     // if(DEBUG) dump_header_entries();
 
-    for(int i=0; i<NUM_ENTRIES; i++){
+    for(int i=0; i<NUM_ENTRIES; i++) {
         fprintf(vcd_file, "$var wire 1 %s %s $end\n", header_entries[i].hex, header_entries[i].name); //header_entry's id-name
         // if(DEBUG) printf("Node(%s, %s)\n", header_entries[i].hex, header_entries[i].name);
     }
@@ -134,7 +134,7 @@ int create_header(){
     fprintf(vcd_file, "$enddefinitions $end\n");
     fprintf(vcd_file, "#0\n$dumpvars\n");
 
-    for(int i=0; i<NUM_ENTRIES; i++){
+    for(int i=0; i<NUM_ENTRIES; i++) {
         fprintf(vcd_file, "b0 %s\n", header_entries[i].hex); //header_entry's initial value
     }
 
@@ -143,7 +143,7 @@ int create_header(){
     return 0;;
 }
 
-long get_file_size(){
+long get_file_size() {
     FILE* temp_file = fopen("c_methods/output.bin", "rb");
     if (temp_file == NULL) {
         perror("Error opening file");
@@ -168,7 +168,7 @@ long get_file_size(){
 }
 
 void dump_entries() {
-    for(int i=0; i<e_index; i++){
+    for(int i=0; i<e_index; i++) {
         printf("entries[%d]\n", i);
         printf("    32_bit: 0x%" PRIx32 "\n", entries[i].id);
         printf("    64_bit: %lu\n\n", entries[i].time_stamp);
@@ -232,7 +232,7 @@ void *read_bin(void* arg) {
                 // printf("    Thread %ld: 64\n", tid);
                 if(DEBUG) printf("    Read 64-bit value: 0x%" PRIx64 "\n", time_stamp);
 
-                if(time_stamp > current_time){
+                if(time_stamp > current_time) {
 
                     current_time = time_stamp;
                     fprintf(vcd_file, "#%d\n", current_time);
@@ -249,14 +249,9 @@ void *read_bin(void* arg) {
             }
         }
     }
-    // printf("Thread %ld: 32 --Complete\n", tid);
-
-    // pthread_mutex_unlock(&vcd_file_lock);
-
-    // fclose(vcd_file);
 }
 
-int thread_binary(){
+int thread_binary() {
     pthread_t threads[THREAD_COUNT];
 
     vcd_file = fopen("c_methods/output.vcd", "a");
@@ -269,7 +264,7 @@ int thread_binary(){
         // printf("\nIn main: creating thread %ld\n", i);
         int rc = pthread_create(&threads[i], NULL, read_bin, (void *)i);
 
-        if (rc){
+        if (rc) {
             printf("ERROR; return code from pthread_create() is %d\n", rc);
             return 1;
         }
@@ -285,7 +280,7 @@ int thread_binary(){
     return 0;
 }
 
-int main(){
+int main() {
     int rv = 0;
     bin_entry_size = sizeof(uint64_t) + sizeof(uint32_t);
 
@@ -317,75 +312,3 @@ int main(){
     printf("VCD vcd_file created successfully!\n");
     return rv;
 }
-
-//TEMP STORAGE FOR THREADING
-
-// while(1) {
-
-        //     // pthread_barrier_wait(&barrier);
-        //     // pthread_mutex_lock(&i_lock);
-
-        //     size_t i_temp = fread(&id, 1, sizeof(uint32_t), bin_file);
-        //     if(i_temp < sizeof(uint32_t)) break;
-
-        //     size_t t_temp = fread(&time_stamp, 1, sizeof(uint64_t), bin_file);
-        //     if(t_temp < sizeof(uint64_t)) break;
-
-        //     // pthread_mutex_unlock(&i_lock);
-
-        //     if(DEBUG) printf("Read 32-bit value: 0x%" PRIx32 "\n", id);
-        //     if(DEBUG) printf("    Read 64-bit value: %lu\n", time_stamp);
-
-        //     pthread_mutex_lock(&i_lock);
-        //     if(time_stamp < min_time){
-        //         min_time = time_stamp;
-        //         min_thread = tid;
-        //     }
-        //     // pthread_mutex_unlock(&i_lock);
-
-        //     // pthread_barrier_wait(&barrier);
-        //     // printf("PAST THE BARRIER!\n");
-
-        //     // pthread_mutex_lock(&i_lock);
-        //     while(tid != min_thread){
-        //         pthread_cond_wait(&cond, &i_lock);
-        //     }
-        //     // printf("PAST THE COND!\n");
-
-        //     // printf("    Thread %ld: 64\n", tid);
-        //     // pthread_barrier_wait(&barrier);
-
-        //     if(time_stamp == current_time){
-
-        //         pthread_mutex_lock(&e_lock);
-        //         uint8_t e_bit = (id<<24) > 0 ? 1 : 0;
-        //         fprintf(vcd_file, "b%d 0x%" PRIx32 "\n", e_bit, (id>>24));
-        //         // printf("Thread %ld: b#\n", tid);
-        //         pthread_mutex_unlock(&e_lock);
-
-        //         if(DEBUG) printf("    Time: %d\n\n", current_time);
-        //     } else if(time_stamp > current_time) {
-        //         pthread_mutex_lock(&time_lock);
-
-        //         current_time = time_stamp;
-        //         fprintf(vcd_file, "#%d\n", current_time);
-
-        //         pthread_mutex_unlock(&time_lock);
-
-        //         pthread_mutex_lock(&e_lock);
-        //         uint8_t e_bit = (id<<24) > 0 ? 1 : 0;
-        //         fprintf(vcd_file, "b%d 0x%" PRIx32 "\n", e_bit, (id>>24));
-        //         // printf("Thread %ld: b#\n", tid);
-        //         pthread_mutex_unlock(&e_lock);
-
-        //         if(DEBUG) printf("    Time: %d\n\n", current_time);
-        //     }
-
-        //     min_thread = -1;
-        //     min_time = INT_MAX;
-        //     pthread_cond_broadcast(&cond);
-        //     pthread_mutex_unlock(&i_lock);
-
-        //     // printf("    Thread %ld: 64 --Complete\n", tid);
-        // }
-        // printf("Thread %ld: 32 --Complete\n", tid);
